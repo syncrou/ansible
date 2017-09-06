@@ -29,6 +29,9 @@
 
 import os
 
+MANAGEIQ_ARGS_MAP = {'token':'api_token', 'url':'api_url', 'username':'username', 'password':'password'}
+MANAGEIQ_MODULE_VARS = ('username', 'password', 'url', 'token')
+
 try:
     from manageiq_client.api import ManageIQClient
     HAS_CLIENT = True
@@ -65,6 +68,29 @@ def validate_connection_params(module):
     for arg in ['url', 'username', 'password']:
         if params[arg] in (None, ''):
             module.fail_json(msg=error_str.format(arg))
+
+def manageiq_extra_vars(module_vars, task_vars):
+    conn_str = 'manageiq_connection'
+    verify_ssl = module_vars[conn_str].pop('verify_ssl', None)
+    for k in MANAGEIQ_MODULE_VARS:
+        if k not in module_vars[conn_str]:
+            try:
+                module_vars[conn_str][k] = task_vars[MANAGEIQ_ARGS_MAP[k]]
+            except KeyError:
+                pass
+
+    if verify_ssl:
+        module_vars[conn_str]['verify_ssl'] = verify_ssl
+
+    # If the username and password came in we always use it
+    try:
+        if module_vars[conn_str]['username'] and module_vars[conn_str]['password']:
+            module_vars[conn_str].pop('token')
+    except KeyError:
+        pass
+
+    return module_vars
+
 
 
 class ManageIQ(object):
